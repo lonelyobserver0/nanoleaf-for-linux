@@ -121,6 +121,19 @@ it against the sha512 published in `latest.yml`, and caches it in
 scripts/build.sh "Nanoleaf Desktop Setup 3.0.0.exe" [output dir]
 ```
 
+### Installing
+
+```sh
+scripts/install.sh                   # installs for the current user under ~/.local
+scripts/install.sh --uninstall
+```
+
+This copies the build to `~/.local/lib/nanoleaf-desktop`, links
+`~/.local/bin/nanoleaf-desktop`, and adds a menu entry
+(`linux/nanoleaf-desktop.desktop`) with the app's icon. Run it again after a rebuild
+to update. `sudo PREFIX=/usr/local scripts/install.sh` installs system-wide.
+Uninstalling keeps your settings and the Wine prefix.
+
 The first launch creates a dedicated Wine prefix in `~/.local/share/nanoleaf-linux/wine`
 (a few seconds). On later launches the bridge is ready in about 0.4 s.
 
@@ -148,4 +161,5 @@ build/electron-*/dist/electron test/capture-electron.cjs     # real screen captu
 - [ ] Dynamic effects (MotionPlayer) and LTPDUv3 devices on real hardware
 - [x] Screen Mirror: portal/grim capture and all 4 modes, tested on Light Panels
 - [x] Music sync: PipeWire capture (system or single app), tested on Light Panels
-- [ ] Packaging (AUR / AppImage), `.desktop` file
+- [x] Menu entry and icon (`scripts/install.sh`)
+- [ ] Packaging (AUR / AppImage)

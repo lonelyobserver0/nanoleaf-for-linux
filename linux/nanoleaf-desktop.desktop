@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Nanoleaf Desktop
+GenericName=Smart Lighting Control
+Comment=Control Nanoleaf lights on the local network (unofficial Linux build)
+Exec=@EXEC@
+Icon=nanoleaf-desktop
+Terminal=false
+Categories=Utility;
+Keywords=nanoleaf;lights;rgb;screen mirror;music sync;rhythm;
+StartupWMClass=nanoleaf-desktop
+StartupNotify=true

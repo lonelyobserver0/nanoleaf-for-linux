@@ -151,4 +151,9 @@ mkdir -p "$RES/koffi/linux_x64"
 mkdir -p "$RES/nlbridge"
 cp "$BUILD/helper/nlbridge.exe.so" "$RES/nlbridge/"
 
+# Menu entry and icon (the app's own 512 px macOS icon suits Linux themes);
+# scripts/install.sh puts them in place.
+cp "$WORK/app/web/assets/images/icons/icon-macos.png" "$OUT/nanoleaf-desktop.png"
+sed "s|@EXEC@|$OUT/nanoleaf-desktop|" "$ROOT/linux/nanoleaf-desktop.desktop" > "$OUT/nanoleaf-desktop.desktop"
+
 echo "==> Done: $OUT/nanoleaf-desktop"
