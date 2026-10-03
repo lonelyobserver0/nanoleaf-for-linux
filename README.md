@@ -79,13 +79,46 @@ The app only enabled capture on macOS ≥ 13 and Windows ≥ 22H2:
 
 ## Build
 
-Build dependencies: `wine`, `7z` (p7zip), `node`/`npm`, `make`, `winegcc` (ships with wine).
-Runtime: `pipewire` (`pw-record`, `pw-dump`, `pw-link`), plus `grim` or a ScreenCast
-portal for Screen Mirror.
+### Dependencies
+
+Build: `wine` with `winegcc`, `7z`, `node`/`npm`, `make`, `curl` (only to download the
+installer). Runtime: `wine`, PipeWire (`pw-record`, `pw-dump`, `pw-link`), plus `grim`
+or a ScreenCast portal for Screen Mirror.
+
+Arch Linux (all packages are in the official repos, so `paru`/`yay` work the same way):
 
 ```sh
-scripts/build.sh "Nanoleaf Desktop Setup 3.0.0.exe"
+sudo pacman -S --needed wine 7zip nodejs npm make curl pipewire pipewire-audio grim xdg-desktop-portal
+# or: paru -S --needed …   /   yay -S --needed …
+```
+
+Debian 13 / Ubuntu 24.04 and later:
+
+```sh
+sudo apt install wine wine64 wine64-tools 7zip nodejs npm make curl pipewire-bin grim xdg-desktop-portal
+```
+
+On Debian/Ubuntu `winegcc` is installed as `winegcc-stable` (or `/usr/lib/wine/winegcc`);
+the build finds it, or set `WINEGCC=/path/to/winegcc`.
+
+For Screen Mirror, install the portal backend for your desktop
+(`xdg-desktop-portal-gnome`, `-kde`, `-hyprland`, `-wlr`…). On wlroots compositors
+(Hyprland, sway) `grim` alone is enough.
+
+### Building
+
+```sh
+scripts/build.sh                     # downloads the latest official installer
 dist/nanoleaf-desktop/nanoleaf-desktop
+```
+
+With no argument (or `latest`), the build fetches the installer from Nanoleaf's
+own update server (the S3 bucket listed in the app's `app-update.yml`), checks
+it against the sha512 published in `latest.yml`, and caches it in
+`build/downloads/`. To use an installer you already have:
+
+```sh
+scripts/build.sh "Nanoleaf Desktop Setup 3.0.0.exe" [output dir]
 ```
 
 The first launch creates a dedicated Wine prefix in `~/.local/share/nanoleaf-linux/wine`

@@ -1,24 +1,68 @@
 #!/usr/bin/env bash
 # Builds a Linux version of Nanoleaf Desktop from the official Windows installer.
 #
+#   scripts/build.sh                                       # download the latest installer
+#   scripts/build.sh latest [output dir]
 #   scripts/build.sh "Nanoleaf Desktop Setup 3.0.0.exe" [output dir]
 #
 # Nothing from Nanoleaf is redistributed: the app is assembled locally from
-# the installer the user downloaded.
+# the official installer, downloaded from Nanoleaf's update server (and checked
+# against the sha512 it publishes) or supplied by the user.
 set -euo pipefail
 
 die() { echo "build: $*" >&2; exit 1; }
 
-[[ $# -ge 1 ]] || die "usage: $0 <Nanoleaf Desktop Setup x.y.z.exe> [output dir]"
-for tool in 7z node npm npx winegcc make; do
+SOURCE=${1:-latest}
+for tool in 7z node npm npx make; do
     command -v "$tool" >/dev/null || die "missing dependency: $tool"
 done
+# Debian/Ubuntu ship winegcc as winegcc-stable or under /usr/lib/wine.
+WINEGCC=${WINEGCC:-$(command -v winegcc || command -v winegcc-stable || command -v /usr/lib/wine/winegcc || true)}
+[[ -n $WINEGCC ]] || die "missing dependency: winegcc (package wine on Arch, wine64-tools on Debian/Ubuntu)"
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-INSTALLER=$(realpath "$1")
 OUT=$(realpath -m "${2:-$ROOT/dist/nanoleaf-desktop}")
 BUILD=$ROOT/build
 WORK=$BUILD/work
+
+# Where Nanoleaf Desktop's own updater looks for releases (app-update.yml).
+UPDATE_URL=https://desktop-app-prod-3.s3.us-west-2.amazonaws.com
+
+# Prints the base64 sha512 of a file, the format latest.yml uses.
+sha512_b64() {
+    node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("base64"))' "$1"
+}
+
+download_installer() {
+    command -v curl >/dev/null || die "missing dependency: curl"
+    local meta name hash file
+    meta=$(curl -fsSL "$UPDATE_URL/latest.yml") || die "cannot fetch $UPDATE_URL/latest.yml"
+    # Top-level keys of latest.yml: "path: <file name>" and "sha512: <base64>".
+    name=$(sed -n 's/^path: *//p' <<<"$meta" | tr -d "'\"")
+    hash=$(sed -n 's/^sha512: *//p' <<<"$meta" | tr -d "'\"")
+    [[ -n $name && -n $hash ]] || die "unexpected latest.yml format"
+    [[ $name == *.exe && $name != */* ]] || die "unexpected installer name in latest.yml: $name"
+
+    mkdir -p "$BUILD/downloads"
+    file=$BUILD/downloads/$name
+    if [[ -f $file && $(sha512_b64 "$file") == "$hash" ]]; then
+        echo "    using cached $name" >&2
+    else
+        echo "==> Downloading $name" >&2
+        curl -fL --progress-bar -o "$file.part" "$UPDATE_URL/$(node -p 'encodeURIComponent(process.argv[1])' "$name")" \
+            || die "download failed"
+        [[ $(sha512_b64 "$file.part") == "$hash" ]] || { rm -f "$file.part"; die "sha512 mismatch for $name"; }
+        mv "$file.part" "$file"
+    fi
+    printf '%s\n' "$file"
+}
+
+if [[ $SOURCE == latest ]]; then
+    INSTALLER=$(download_installer)
+else
+    [[ -f $SOURCE ]] || die "installer not found: $SOURCE"
+    INSTALLER=$(realpath "$SOURCE")
+fi
 
 rm -rf "$WORK"
 mkdir -p "$WORK"
@@ -34,7 +78,8 @@ ELECTRON_VERSION=$(grep -aoE "Electron/[0-9]+\.[0-9]+\.[0-9]+" "$WIN_EXE" | head
 echo "    Electron $ELECTRON_VERSION"
 
 echo "==> Unpacking app.asar"
-npx -y @electron/asar extract "$WORK/win/resources/app.asar" "$WORK/app"
+# asar 4.x needs Node >= 22.12; 3.x reads the same format on older distro Node.
+npx -y @electron/asar@3.4.1 extract "$WORK/win/resources/app.asar" "$WORK/app"
 APP_VERSION=$(node -p "require('$WORK/app/package.json').version")
 echo "    Nanoleaf Desktop $APP_VERSION"
 
@@ -69,7 +114,7 @@ HID_NODE=$(find "$NATIVE" -path '*prebuilds/HID_hidraw-linux-x64/*.node' | head 
 [[ -n $USB_NODE && -n $HID_NODE ]] || die "Linux native addons not found in the npm packages"
 
 echo "==> Building the Wine bridge"
-make -s -C "$ROOT/helper" OUT="$BUILD/helper"
+make -s -C "$ROOT/helper" OUT="$BUILD/helper" WINEGCC="$WINEGCC"
 
 echo "==> Assembling $OUT"
 rm -rf "$OUT"
