@@ -1,0 +1,5 @@
+# Nanoleaf installers and anything derived from them are never committed.
+*.exe
+build/
+dist/
+node_modules/
